@@ -1,0 +1,96 @@
+version: "3.7"
+services:
+  app:
+    build:
+      args:
+        user: carlos
+        uid: 1000
+      context: ./
+      dockerfile: Dockerfile
+    image: app
+    links:
+      - mysql
+    container_name: app
+    restart: unless-stopped
+    working_dir: /var/www/
+    ports:
+      - 9000:9000
+    volumes:
+      - ./code:/var/www
+      - ./docker-compose/php/xdebug.ini:/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+      - ./docker-compose/php/memory_limit.ini:/usr/local/etc/php/conf.d/memory_limit.ini
+    networks:
+      app-network:
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1024M
+  mysql:
+    env_file:
+      - ./code/.env
+    image: mysql:5.7
+    container_name: app-mysql
+    restart: unless-stopped
+    tty: true
+    ports:
+      - 3306:3306
+    volumes:
+      - ./mysql-data:/var/lib/mysql
+    networks:
+      - app-network
+
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1024M
+
+  nginx:
+    image: nginx:alpine
+    container_name: app-nginx
+    restart: unless-stopped
+    ports:
+      - 80:80
+    links:
+      - mysql
+      - app
+    volumes:
+      - ./code/:/var/www
+      - ./docker-compose/nginx:/etc/nginx/conf.d
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1024M
+
+  redis:
+    image: redis:alpine
+    container_name: app-redis
+    restart: unless-stopped
+    ports:
+      - 6379:6379
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-network
+
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 50M
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:
